@@ -1,0 +1,29 @@
+AES128加密及 计算 MIC 所使用的函数
+1、数据帧 FRMPayload 的加密
+public static byte[] LoRaMacPayloadEncrypt(byte[] frmPayload, int size, byte[] key, 
+											byte[] address, byte dir, byte[] sequenceCounter)
+2、数据帧 FRMPayload 的解密											
+public static byte[] LoRaMacPayloadDecrypt(byte[] frmPayload, int size, byte[] key, 
+											byte[] address, byte dir, byte[] sequenceCounter)
+3、数据帧计算 MIC
+public static byte[] LoRaMacComputeMic(byte[] buffer, int size, byte[] key, byte[] address, 
+											byte dir, byte[] sequenceCounter)
+4、Join 帧计算 MIC
+public static byte[] LoRaMacJoinComputeMic(byte[] buffer, int size, byte[] key)		
+									
+5、Accept 帧的加密								
+public static byte[] LoRaMacAcceptEncrypt(byte[] buffer, int size, byte[] key)	
+										
+6、入网时计算 NwkSKey 秘钥, 用于命令作为 FRMPayload 发送时的加密											
+public static byte[] LoRaMacJoinComputeNwkSKey(byte[] key, byte[] appNonce, byte[] devNonce)
+											
+7、入网时计算 AppSKey 秘钥, 用于对 FRMPayload 部分进行加密					
+public static byte[] LoRaMacJoinComputeAppSKey(byte[] key, byte[] appNonce, byte[] devNonce)		
+
+
+
+
+
+
+
+									

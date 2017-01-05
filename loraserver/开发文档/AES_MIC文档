@@ -1,0 +1,79 @@
+一、Join-request: 只需计算MIC值
+---------------------------------------------
+| Size (bytes) |    8   |     8  |     2    |
+|--------------|--------|--------|----------|
+| Join Request | AppEUI | DevEUI | DevNonce |
+---------------------------------------------
+
+MIC的计算: 
+	cmac = aes128_cmac(AppKey, MHDR(1) | AppEUI(8) | DevEUI(8) | DevNonce(2))
+	MIC = cmac[0...3]
+	内容字节数已超过16字节
+
+二、Join-accept: 秘钥NwkSKey及AppSKey的计算准备，先计算MIC值再进行加密
+------------------------------------------------------------------------------------
+| Size (bytes) |     3    |   3   |    4    |      1     |     1   | (16) Optional |
+|--------------|----------|-------|---------|------------|---------|---------------|
+| Join Accept  | AppNonce | NetID | DevAddr | DLSettings | RxDelay |     CFList    |
+------------------------------------------------------------------------------------
+
+秘钥NwkSKey及AppSKey的计算准备:
+	NwkSKey = aes128_encrypt(AppKey, 0x01 | AppNonce(3) | NetID(3) | DevNonce(2) | pad 16 )
+	AppSKey = aes128_encrypt(AppKey, 0x02 | AppNonce(3) | NetID(3) | DevNonce(2) | pad 16 )
+	通过aes128_encrypt(AppKey, 加密内容) 计算 NwkSKey 及 AppSKey 时，由于加密内容不足 16 字节，需要进行填充，补0x00.
+	并且需要保证计算出来的 NwkSKey 及 AppSKey 为 128 位，即 16 字节. 用于后续 FRMPayload 数据的加密. 
+MIC的计算: 
+	cmac = aes128_cmac(AppKey, MHDR(1) | AppNonce(3) | NetID(3) | DevAddr(4) | DLSettings(1) | RxDelay(1) | CFList)
+	MIC = cmac[0...3]
+加密:
+	aes128_decrypt(AppKey, AppNonce(3) | NetID(3) | DevAddr(4) | DLSettings(1) | RxDelay(1) | CFList(可变) | MIC(4))
+	用解密算法 aes128_decrypt(AppKey,加密内容) 进行加密, 加密内容可能超过 16 字节.使用 ECB/NoPadding 模式加解密
+	
+三、数据帧: 对 FRMPayload 的部分加密，针对 MAC 命令及应用数据采用不同的秘钥，即NwkSKey与AppSKey
+【加密过程参考协议 20 页. MIC 计算过程参考协议 21 页】
+
+FRMPayload的加密过程:
+	pld = FRMPayload
+	----------------------------------------------------------------------
+	| Size (bytes) |   1  |   4  |   1  |    4    |    4   |   1  |   1  |
+	|--------------|------|------|------|---------|--------|------|------|
+	|      Ai      | 0x01 | 0x00 |  Dir | DevAddr | FCntUp | 0x00 |   i  | 
+	----------------------------------------------------------------------
+	first:这里的每一个 Ai 都是 16 字节
+		Si = aes128_encrypt(K, Ai ) for i = 1..k
+		S = S1 | S2 | ... | Sk
+	second:截断至原 pld 的长度
+		(pld | pad16 ) xor S
+	是不是也需要保证 Si 也为 16 字节, 才能进行后续的异或运算？
+
+MIC 的计算:
+	需要进行 MIC 计算的数据，包含了 PHYPayload 的所有字段.
+	msg = MHDR | FHDR | FPort | FRMPayload
+	
+	cmac = aes128_cmac(NwkSKey, B0 | msg)
+	MIC = cmac[0..3]
+
+	--------------------------------------------------------------------------
+	| Size (bytes) |   1  |   4  |   1  |    4    |    4   |   1  |     1    |
+	|--------------|------|------|------|---------|--------|------|----------|
+	|      B0      | 0x49 | 0x00 |  Dir | DevAddr | FCntUp | 0x00 | len(msg) | 
+	--------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
