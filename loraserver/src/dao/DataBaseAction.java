@@ -11,7 +11,7 @@ public class DataBaseAction {
 		DataBase db;
 	    for(Entry<String, InfoForm> entry : infomap.entrySet()){ 
 			String value = entry.getKey();
-			info = (InfoForm)entry.getValue();
+			info = entry.getValue();
 			try {
 				System.out.println("dao.DataBase" + value.substring(0, value.length() - 1));
 				Class<?> cls = Class.forName("dao.DataBase" + value.substring(0, value.length() - 1));

@@ -158,13 +158,13 @@ public class ParseJson {
 	// 用于本地测试 json 解析及存到数据库
 	public static void main(String[] args){
 		ParseJson pjs = new ParseJson();
-		pjs.parseOfJson(pjs.getJson());
-		HashMap<String, InfoForm> InfoMap = pjs.parseOfJson(pjs.json);
+		ParseJson.parseOfJson(pjs.getJson());
+		HashMap<String, InfoForm> InfoMap = ParseJson.parseOfJson(pjs.json);
 		InfoForm info; 
 		Set set = InfoMap.keySet(); 
 	    for(Iterator itr=set.iterator();itr.hasNext();){ 
 	    	String value =(String) itr.next(); 
-	    	info = (InfoForm)InfoMap.get(value); 
+	    	info = InfoMap.get(value); 
 //	      	info.saveData();
 	    	if(info instanceof InfoFSKModEndForm){
 	    	  System.out.println("fsk");

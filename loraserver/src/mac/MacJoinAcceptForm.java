@@ -45,7 +45,7 @@ public class MacJoinAcceptForm extends MacPktForm {
 		            	i = i + ((MacJoinAcceptForm.Dlsetting)field.get(this)).getLength();
 		            	
 		            } else{
-		            	System.arraycopy((byte[])field.get(this), 
+		            	System.arraycopy(field.get(this), 
 		            			0, output, i, 
 		            			((byte[])field.get(this)).length);
 		            	i = i + ((byte[])field.get(this)).length;

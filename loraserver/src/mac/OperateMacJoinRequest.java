@@ -1,8 +1,6 @@
 package mac;
 
-import aes.LoRaMacCrypto;
 import base64.base64__;
-import util.StringHex.ParseByte2HexStr;
 
 public class OperateMacJoinRequest implements OperateMacPkt {
 

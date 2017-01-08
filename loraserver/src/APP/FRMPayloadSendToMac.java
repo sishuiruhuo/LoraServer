@@ -4,6 +4,7 @@ public class FRMPayloadSendToMac implements OperatePayload {
 
 	
 	//添加应用层的frmpayload 
+	@Override
 	public byte[] Send(byte[] macPayload) {
 		byte[] macPayload_frmpayload;
 		byte[] frmpayload = {0x00};
@@ -13,6 +14,7 @@ public class FRMPayloadSendToMac implements OperatePayload {
 	}
 
 
+	@Override
 	public void Recv() {
 		;
 

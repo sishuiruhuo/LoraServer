@@ -1,6 +1,5 @@
 package main;
 
-import socket.ServerToEndnodes;
 import socket.Socket_Server;
 
 public class LoRaMain {

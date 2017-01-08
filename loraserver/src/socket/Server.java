@@ -36,7 +36,8 @@ public class Server implements Runnable{
 	private HashMap<String, InfoForm> UpInfoMap = new HashMap<String, InfoForm>();
 	private HashMap<String, DownInfoForm> DownInfoMap = new HashMap<String, DownInfoForm>();
 	public List<String> OPMACLISTNAME = new ArrayList<String>();
-    public void run()  
+    @Override
+	public void run()  
     {  
     	OPMACLISTNAME.add("mac.OperateMacJoinRequest");
 		OPMACLISTNAME.add("mac.OperateMacJoinAccept");

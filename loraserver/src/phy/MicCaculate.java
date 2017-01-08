@@ -23,11 +23,11 @@ public class MicCaculate {
 		// TODO 需要讨论将秘钥存在哪里
 		byte[] appNonce = new byte[3];
 		byte[] devNonce = new byte[2];
-		byte[] nwkskey = LoRaMacCrypto.LoRaMacJoinComputeNwkSKey(LoRaMacCrypto.APPKEY.getBytes(), appNonce, devNonce);
+		byte[] nwkskey = LoRaMacCrypto.LoRaMacJoinComputeNwkSKey(LoRaMacCrypto.APPKEY, appNonce, devNonce);
 		
 		// MIC 计算
 		if(type == 1){
-			mic = LoRaMacCrypto.LoRaMacJoinComputeMic(data, data.length, LoRaMacCrypto.APPKEY.getBytes());
+			mic = LoRaMacCrypto.LoRaMacJoinComputeMic(data, data.length, LoRaMacCrypto.APPKEY);
 		} else if(type == 3){ 
 			MacUnconfirmedDataDownForm mac = (MacUnconfirmedDataDownForm) macpktform;
 			mic = LoRaMacCrypto.LoRaMacComputeMic(data, data.length, nwkskey, mac.DevAddr, (byte) 0x01, mac.Fcnt);

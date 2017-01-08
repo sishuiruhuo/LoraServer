@@ -97,6 +97,7 @@ public class InfoLoraModEndForm implements InfoForm{
 		return this.data;
 	}
 		
+	@Override
 	public void saveData() {
 		// TODO Auto-generated method stub
 		System.out.println("Lora");

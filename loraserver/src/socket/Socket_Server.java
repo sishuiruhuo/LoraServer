@@ -12,9 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 
-import dao.DataBase;
 import dao.DataBaseAction;
-import jsonform.DownInfoA;
 import jsonform.DownInfoForm;
 import jsonform.InfoForm;
 import mac.MacPktForm;
@@ -110,10 +108,10 @@ public class Socket_Server implements Runnable {
 						UpInfoMap.remove(entry);
 						UpData = UpInfo.getData();	// 解 base64 后的
 						mhdr = UpData[0];
-						System.out.println("===============:" + (((int)mhdr & 0xff) >> 5));
+						System.out.println("===============:" + ((mhdr & 0xff) >> 5));
 						try{
 							// 通过反射创建不同的对象,用于不同的 Mtype 类型
-							Class<?> cls = Class.forName(OPMACLISTNAME.get( (((int)mhdr & 0xff) >> 5 )) );
+							Class<?> cls = Class.forName(OPMACLISTNAME.get( ((mhdr & 0xff) >> 5 )) );
 							Constructor<?> ctr = cls.getConstructor();
 							opmacpkt = (OperateMacPkt) ctr.newInstance();
 							
@@ -127,7 +125,7 @@ public class Socket_Server implements Runnable {
 							// 对于 accept 帧不加密,对于数据帧需要加密 frame 部分
 							// accept 帧的加密操作在 Phypkt2byte 中完成，便于 MIC 的生成
 							// 非确认帧的 downData 应该为 null
-							downData = PhyConstruct.PhyPkt2Byte(opmacpkt.MacConstructData(macpkt), (((int)mhdr & 0xff) >> 5));
+							downData = PhyConstruct.PhyPkt2Byte(opmacpkt.MacConstructData(macpkt), ((mhdr & 0xff) >> 5));
 							
 							
 							// 构造回送的 Info, 并加到 DownInfoMap 中

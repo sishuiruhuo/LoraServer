@@ -25,7 +25,7 @@ public class MacConfirmedDataDownForm extends MacPktForm{
 		            	i = i + ((MacConfirmedDataDownForm.Fctrl)field.get(this)).getLength();
 		            	
 		            } else{
-		            	System.arraycopy((byte[])field.get(this), 
+		            	System.arraycopy(field.get(this), 
 		            			0, output, i, 
 		            			((byte[])field.get(this)).length);
 		            	i = i + ((byte[])field.get(this)).length;

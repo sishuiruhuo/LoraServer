@@ -28,7 +28,7 @@ public class OperateMacUnconfirmedDataUp implements OperateMacPkt{
 		System.arraycopy(macunconfirmeddataup.Fcnt, 0, fcnt, 0, 2);
 		System.out.println();
 		macunconfirmeddataup.FRMPayload = LoRaMacCrypto.LoRaMacPayloadDecrypt(
-				macunconfirmeddataup.FRMPayload, framelen, LoRaMacCrypto.APPKEY.getBytes(), 
+				macunconfirmeddataup.FRMPayload, framelen, LoRaMacCrypto.APPKEY, 
 				macunconfirmeddataup.DevAddr, (byte) 0x00, 
 				fcnt);// TODO fcnt 需要 4 字节的，这里是 2 字节的, 加密秘钥也需要变动, 应为 AppSKey
 		return macunconfirmeddataup;
@@ -63,7 +63,7 @@ public class OperateMacUnconfirmedDataUp implements OperateMacPkt{
 		byte[] fcnt = new byte[4];
 		System.arraycopy(macunconfirmeddataup.Fcnt, 0, fcnt, 0, 2);
 		macunconfirmeddatadown.FRMPayload = LoRaMacCrypto.LoRaMacPayloadEncrypt(
-				frmPayload, frmPayload.length, LoRaMacCrypto.APPKEY.getBytes(), 
+				frmPayload, frmPayload.length, LoRaMacCrypto.APPKEY, 
 				macunconfirmeddatadown.DevAddr, (byte) 0x01, 
 				fcnt);	// TODO fcnt 需要 4 字节的，这里是 2 字节的, 加密秘钥也需要变动, 应为 AppSKey
 		

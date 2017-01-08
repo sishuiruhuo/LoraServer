@@ -2,7 +2,6 @@ package phy;
 
 import aes.LoRaMacCrypto;
 import mac.MacPktForm;
-import util.StringHex.ParseByte2HexStr;
 
 public class PhyConstruct {
 
@@ -30,7 +29,7 @@ public class PhyConstruct {
 		if(type == 1){
 			// 如果是 accept 数据帧,则还需连同 MIC 加密, 使用秘钥 AppKey
 			System.out.println("=====accept encrypt=====");
-			phy = LoRaMacCrypto.LoRaMacAcceptEncrypt(phy, phy.length, LoRaMacCrypto.APPKEY.getBytes());
+			phy = LoRaMacCrypto.LoRaMacAcceptEncrypt(phy, phy.length, LoRaMacCrypto.APPKEY);
 		}
 		return phy;		
 	}

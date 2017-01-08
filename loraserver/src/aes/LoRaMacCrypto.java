@@ -9,7 +9,6 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import base64.base64__;
-import phy.Mhdr;
 
 public class LoRaMacCrypto {
 	 /**
@@ -32,7 +31,11 @@ public class LoRaMacCrypto {
 	  * 
 	  */
 	
-	public static final String APPKEY = "0123456123abcdef";
+	public static final byte[] APPKEY = {
+			0x00, 0x00, 0x00, 0x00, 
+			0x00, 0x00, 0x00, 0x00, 
+			0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00};
 	
 	/**
 	 * 
@@ -44,7 +47,6 @@ public class LoRaMacCrypto {
 	 */
 	public static final String CIPHER_ALGORITHM_ECBNopadding = "AES/ECB/Nopadding";
 	public static final String CIPHER_ALGORITHM_CBCNopadding = "AES/CBC/Nopadding";
-	public static final String CIPHER_ALGORITHM_pkcs5padding = "AES/CBC/pkcs5padding";
 	
 	
 	/**
@@ -76,7 +78,7 @@ public class LoRaMacCrypto {
 		while(size >= 16){
 			aBlock[15] = (byte) ( ( ctr ) & 0xFF );
 	        ctr++;
-	        sBlock = LoRaMacCrypto.encrypt_CBC(aBlock, key);
+	        sBlock = LoRaMacCrypto.encrypt_ECB(aBlock, key);
 	        for( int i = 0; i < 16; i++ ) {
 	            frmPayload[bufferIndex + i] = (byte) (frmPayload[bufferIndex + i] ^ sBlock[i]);
 	        }
@@ -85,7 +87,7 @@ public class LoRaMacCrypto {
 		}
 		if( size > 0 ) {
 	        aBlock[15] = (byte) ( ( ctr ) & 0xFF );
-	        sBlock = LoRaMacCrypto.encrypt_CBC(aBlock, key);
+	        sBlock = LoRaMacCrypto.encrypt_ECB(aBlock, key);
 	        for(int i = 0; i < size; i++ ) {
 	        	frmPayload[bufferIndex + i] = (byte) (frmPayload[bufferIndex + i] ^ sBlock[i]);
 	        }
@@ -109,36 +111,7 @@ public class LoRaMacCrypto {
 	 * @return
 	 */
 	public static byte[] LoRaMacPayloadDecrypt(byte[] frmPayload, int size, byte[] key, byte[] address, byte dir, byte[] sequenceCounter){
-		byte[] aBlock = {
-				0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-		byte[] sBlock = {
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-		aBlock[5] = dir;
-		System.arraycopy(address, 0, aBlock, 6, 4);
-		System.arraycopy(sequenceCounter, 0, aBlock, 10, 4);
-		
-		int ctr = 1, bufferIndex = 0;
-		while(size >= 16){
-			aBlock[15] = (byte) ( ( ctr ) & 0xFF );
-	        ctr++;
-	        sBlock = LoRaMacCrypto.decrypt_CBC(aBlock, key);
-	        for( int i = 0; i < 16; i++ ) {
-	            frmPayload[bufferIndex + i] = (byte) (frmPayload[bufferIndex + i] ^ sBlock[i]);
-	        }
-	        size -= 16;
-	        bufferIndex += 16;
-		}
-		if( size > 0 ) {
-	        aBlock[15] = (byte) ( ( ctr ) & 0xFF );
-	        sBlock = LoRaMacCrypto.decrypt_CBC(aBlock, key);
-	        for(int i = 0; i < size; i++ ) {
-	        	frmPayload[bufferIndex + i] = (byte) (frmPayload[bufferIndex + i] ^ sBlock[i]);
-	        }
-	    }
-		return frmPayload;
-		
+		return LoRaMacCrypto.LoRaMacPayloadEncrypt(frmPayload, size, key, address, dir, sequenceCounter);
 	}
 	
 	/**
@@ -203,10 +176,7 @@ public class LoRaMacCrypto {
 	 * @return 加密完成后的字节数组
 	 */
 	public static byte[] LoRaMacAcceptEncrypt(byte[] buffer, int size, byte[] key){
-		byte[] output = LoRaMacCrypto.encrypt_Test(LoRaMacCrypto.APPKEY, buffer);
-		
-		
-		return output;
+		return LoRaMacCrypto.decrypt_ECB(buffer, key);
 	}
 	
 	/**
@@ -260,7 +230,6 @@ public class LoRaMacCrypto {
 	 * @throws Exception
 	 */
 	public static byte[] decrypt_ECB(byte[] data, byte[] key) {
-		String ivParameter = "0123456123abcdef";
 		Key k = toKey(key);		
 		Cipher cipher;
 		try {
@@ -305,13 +274,10 @@ public class LoRaMacCrypto {
 	 * @throws Exception
 	 */
 	public static byte[] encrypt_ECB(byte[] data, byte[] key){
-		String ivParameter = "0123456789abcdef";
 		Key k = toKey(key);		
 		Cipher cipher;
 		try {
 			cipher = Cipher.getInstance(CIPHER_ALGORITHM_ECBNopadding);
-			// CBC
-			IvParameterSpec iv = new IvParameterSpec(ivParameter.getBytes());
 			cipher.init(Cipher.ENCRYPT_MODE, k);
 			return cipher.doFinal(data);	
 		} catch (Exception e) {
@@ -397,69 +363,39 @@ public class LoRaMacCrypto {
                     hex = '0' + hex;   
             }   
             System.out.print("0x" + hex + " "); 
+            if( (i + 1) % 16 == 0)
+            	System.out.println();
 		}   
-		System.out.println();
 	}
 	
 	public static void main(String[] args){
 	
-		String algorithm = CIPHER_ALGORITHM_ECBNopadding;
-//		String algorithm = CIPHER_ALGORITHM_pkcs5padding;
-		System.out.println(algorithm);
-		/*byte[] keybyte = {
-				0x01,0x01,0x01,0x01,
-				0x01,0x01,0x01,0x01,
-				0x01,0x01,0x01,0x01,
-				0x01,0x01,0x01,0x01};
-		System.out.println("0000: " + new String(keybyte));*/
-//		String inputStr = "AESAESAESAESAESA";		
-//		byte[] inputData = inputStr.getBytes();
-		byte[] inputData = {
-				0x21, 0x01, 0x02, 0x03, 
-				0x00, 0x00, 0x60, (byte) 0xc0, 
-				(byte) 0xa8, 0x01, 0x01, 0x12, 
-				0x01,0x01,0x01,0x01};
-		/*byte[] inputData = {
-				0x41,0x45,0x53,0x41,
-				0x45,0x53,0x41,0x45,
-				0x53,0x41,0x45,0x53,
-				0x41,0x45,0x53};*/
-		System.out.print("加密前: " + inputData.length + " ");
-		LoRaMacCrypto.myprintHex(inputData);
-		//byte[] keybyte = AesEncrypt.initKey();
-	//	AesEncrypt.Encrypt(APPKEY, inputData);
+		//String algorithm = CIPHER_ALGORITHM_ECBNopadding;
+		byte[] AppSKey = {
+				0x2B, 0x7e, 0x15, 0x16,
+				0x28, (byte) 0xae, (byte) 0xd2, (byte) 0xa6, 
+				(byte) 0xab, (byte) 0xf7, 0x15, (byte) 0x88,
+				0x09, (byte) 0xcf, 0x4f, 0x3c};
 		
+		byte[] frmdata = {0x01,0x02,0x03,0x01,
+				0x01,0x60,(byte) 0x8d,(byte) 0xc0,
+				0x79,0x01,0x01,0x01,
+				(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,
+				0x01,0x02,0x03,0x01,
+				0x01,0x60,(byte) 0x8d,(byte) 0xc0,
+				0x79,0x01,0x01,0x01,
+				(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,(byte) 0xf0};
 		
-		byte[] outputData = LoRaMacCrypto.encrypt_ECB(inputData, (LoRaMacCrypto.APPKEY).getBytes());
-		inputData = LoRaMacCrypto.decrypt_ECB(outputData, (LoRaMacCrypto.APPKEY).getBytes());
-		System.out.print("加密后: " + inputData.length + " ");	
-		LoRaMacCrypto.myprintHex(inputData);
+		byte[] address = {(byte) 0x8D,(byte) 0xC0,0x79,0x00};
+		byte dir = 0x01;
+		byte[] sequenceCounter = {0x01,0x00,0x00,0x00};
 		
+		byte[] outputaccept = LoRaMacCrypto.LoRaMacAcceptEncrypt(frmdata, frmdata.length, AppSKey);
+		System.out.println("数据帧：AppSKey");
+		LoRaMacCrypto.myprintHex(outputaccept);
+		System.out.println("accept：AppSKey");
+		LoRaMacCrypto.myprintHex(LoRaMacCrypto.encrypt_ECB(outputaccept, AppSKey));
 		
-		System.out.print("解密后: " + outputData.length + " ");		
-		LoRaMacCrypto.myprintHex(outputData);
-		LoRaMacCrypto.myprintHex(LoRaMacCrypto.APPKEY.getBytes());
-		
-		byte bb = (byte) 0xff;
-		System.out.println(" --------_+："+ ( ((int)(bb & 0xff)) >> 5));
-		/*
-		byte buf[] = new byte[2];
-		buf[0] = 1;
-		buf[1] = 15;
-		byte[] tt = {0x00};
-		//System.arraycopy(buf, 0, tt, 0, 2);
-		//System.arraycopy(buf, 0, tt, 2, 2);
-		tt = buf;
-		StringBuffer sb = new StringBuffer();   
-	    for (int i = 0; i < tt.length; i++) {   
-	            String hex = Integer.toHexString(tt[i] & 0xFF);   
-	            if (hex.length() == 1) {   
-	                    hex = '0' + hex;   
-	            }   
-	            sb.append(hex.toUpperCase());   
-	    }   
-	    System.out.println(sb.toString());
-	    */
 	}
 	
 } 
