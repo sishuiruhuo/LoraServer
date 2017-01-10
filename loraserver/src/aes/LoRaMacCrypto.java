@@ -1,12 +1,14 @@
 package aes;
 
 import java.security.Key;
+import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.xml.bind.DatatypeConverter;
 
 import base64.base64__;
 
@@ -116,8 +118,8 @@ public class LoRaMacCrypto {
 	
 	/**
 	 * 
-	 * @param buffer: 用于计算 MIC 的数据
-	 * @param size: 用于计算 MIC 的长度
+	 * @param buffer: 用于计算 MIC 的协议字段数据(不包含 B0)
+	 * @param size: 用于计算 MIC 的长度(不包含 B0)
 	 * @param key: 秘钥 AppSKey/NwkSKey
 	 * @param address: DevAddr
 	 * @param dir: up 0  down 1
@@ -125,29 +127,25 @@ public class LoRaMacCrypto {
 	 * @return 4B 的 mic
 	 */
 	public static byte[] LoRaMacComputeMic(byte[] buffer, int size, byte[] key, byte[] address, byte dir, byte[] sequenceCounter){
-		/*byte[] data = new byte[macbyte.length + 17];		// 用于计算 MIC 的所有字段
-		byte[] B0 = {0x49,0x00,0x00,0x00,0x00,
-				下行固定值:10x01,
-				设备地址 60x00,0x00,0x00,0x00,
-				Fcnt 100x00,0x00,0x00,0x00,
-				0x00,0x00};
 		
-		// 准备用于计算 MIC 的字段
-		System.arraycopy(macbyte, 0, B0, 6, 4);
-		System.arraycopy(macbyte, 5, B0, 10, 2);
-		System.arraycopy((byte)(macbyte.length + 1), 0, B0, 15, 1);
-		Mhdr mhdr = new Mhdr(type, 0, 1);
-		System.arraycopy(mhdr.MhdrPktToByte(), 0, data, 0, mhdr.getLength());
-		System.arraycopy(macbyte, 0, data,  mhdr.getLength(), macbyte.length);*/
+		byte[] data = new byte[buffer.length + 16];		// 用于计算 MIC 的所有字段
+		byte[] B0 = {
+				0x49,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+				0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 		
-		byte[] mic = new byte[4];
-		mic[0] = 0x01;
-		mic[1] = 0x02;
-		mic[2] = 0x04;
-		mic[3] = 0x08;
-		return mic;
+		// 准备用于计算 MIC 的字段, 即 data[]
+		B0[5] = dir;
+		System.arraycopy(address, 0, B0, 6, 4);
+		System.arraycopy(sequenceCounter, 0, B0, 10, 4);
+		B0[15] = (byte) (size & 0xff);
+		
+		System.arraycopy(B0, 0, data, 0, 16);
+		System.arraycopy(buffer, 0, data, 16, size);
+		
+		return ComputeMic(data, data.length, key);
 	}
 	
+
 	/**
 	 * 
 	 * @param buffer: 用于计算 MIC 的数据
@@ -156,12 +154,7 @@ public class LoRaMacCrypto {
 	 * @return 4B 的 MIC
 	 */
 	public static byte[] LoRaMacJoinComputeMic(byte[] buffer, int size, byte[] key){
-		byte[] mic = new byte[4];
-		mic[0] = 0x01;
-		mic[1] = 0x02;
-		mic[2] = 0x04;
-		mic[3] = 0x08;
-		return mic;
+		return ComputeMic(buffer, size, key);
 	}
 	
 	/**
@@ -181,7 +174,7 @@ public class LoRaMacCrypto {
 	
 	/**
 	 * 
-	 * @param key 秘钥 AppSKey/NwkSKey
+	 * @param key: AppKey
 	 * @param appNonce
 	 * @param devNonce
 	 * @return 16B 的 NwkSKey
@@ -197,7 +190,7 @@ public class LoRaMacCrypto {
 	
 	/**
 	 * 
-	 * @param key
+	 * @param key: AppKey
 	 * @param appNonce
 	 * @param devNonce
 	 * @return 16B 的 AppSKey
@@ -210,16 +203,76 @@ public class LoRaMacCrypto {
 		appskey[3] = 0x08;
 		return appskey;
 	}
-	
-	
+
 	/**
 	 * 
-	 * @param key
-	 * @return
+	 * @param data: 用于计算 MIC 的数据字段
+	 * @param size: 数据字段长度
+	 * @param key: 秘钥
+	 * @return: 4 字节的 MIC
 	 */
-	private static Key toKey(byte[] key){
-		SecretKey secretKey = new SecretKeySpec(key, KEY_ALGORITHM);
-		return secretKey;
+	public static byte[] ComputeMic(byte[] data, int size, byte[] key) {
+		byte[] mic = new byte[4];
+		byte[] iv = DatatypeConverter.parseHexBinary("00000000000000000000000000000000");
+		byte[] key1 =  DatatypeConverter.parseHexBinary("fbeed618357133667c85e08f7236a8de");
+		byte[] key2 =  DatatypeConverter.parseHexBinary("f7ddac306ae266ccf90bc11ee46d513b");
+		
+		try {
+			int  nBlocks = size / 16;
+			int  lastBlen = size % 16;
+			byte[] lastState;
+			byte[] lastBData;
+			
+			boolean padding = false;
+			if(lastBlen > 0){
+				padding = true;
+				nBlocks++;
+			}
+
+			if(nBlocks > 1) {
+				byte[] cbcdata =  Arrays.copyOf(data, (nBlocks-1)*16);
+				
+				SecretKeySpec aesKey = new SecretKeySpec(key,"AES");
+				IvParameterSpec ivparam = new IvParameterSpec(iv);
+				Cipher cbc = Cipher.getInstance(CIPHER_ALGORITHM_CBCNopadding);
+				cbc.init(Cipher.ENCRYPT_MODE,aesKey,ivparam);
+				byte[] cbcCt = cbc.doFinal(cbcdata);
+				
+				lastState = Arrays.copyOfRange(cbcCt,(nBlocks-2)*16, (nBlocks-1)*16);
+				lastBData = Arrays.copyOfRange(data,(nBlocks-1)*16 ,(nBlocks)*16);
+			} else {
+				if(size == 0) {
+					lastState = DatatypeConverter.parseHexBinary("00000000000000000000000000000000");
+					lastBData = DatatypeConverter.parseHexBinary("00000000000000000000000000000000");
+					padding=true;
+				} else {
+					lastState = DatatypeConverter.parseHexBinary("00000000000000000000000000000000");
+					lastBData = Arrays.copyOfRange(data,(nBlocks-1)*16 ,(nBlocks)*16);
+				}
+			}
+			if(lastBlen != 0 || padding) {
+				lastBData[lastBlen] = (byte) 128;
+			}
+			if(padding){
+				for (int i = 0; i < 16; i++) {
+					lastBData[i] = (byte) ((lastBData[i]) ^ ( key2[i]));
+				}
+			}else{
+				for (int i = 0; i < 16; i++) {
+					lastBData[i] = (byte) ((lastBData[i]) ^ ( key1[i]));
+				}
+			}
+
+			SecretKeySpec aesKey= new SecretKeySpec(key,"AES");
+			IvParameterSpec ivparam = new IvParameterSpec(lastState);
+			Cipher aesMac = Cipher.getInstance(CIPHER_ALGORITHM_CBCNopadding);
+			aesMac.init(Cipher.ENCRYPT_MODE,aesKey, ivparam);
+			mic = Arrays.copyOfRange(aesMac.doFinal(lastBData), 0, 4);
+			return mic;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return mic;
 	}
 	
 	/**
@@ -326,6 +379,15 @@ public class LoRaMacCrypto {
 		return null;
 	}
 	
+	/**
+	 * 
+	 * @param key
+	 * @return
+	 */
+	private static Key toKey(byte[] key){
+		SecretKey secretKey = new SecretKeySpec(key, KEY_ALGORITHM);
+		return secretKey;
+	}
 
 	
 	/**
@@ -366,35 +428,65 @@ public class LoRaMacCrypto {
             if( (i + 1) % 16 == 0)
             	System.out.println();
 		}   
+		System.out.println();
 	}
 	
-	public static void main(String[] args){
-	
-		//String algorithm = CIPHER_ALGORITHM_ECBNopadding;
+	public static void main(String[] args){		
+		
 		byte[] AppSKey = {
 				0x2B, 0x7e, 0x15, 0x16,
 				0x28, (byte) 0xae, (byte) 0xd2, (byte) 0xa6, 
 				(byte) 0xab, (byte) 0xf7, 0x15, (byte) 0x88,
 				0x09, (byte) 0xcf, 0x4f, 0x3c};
-		
-		byte[] frmdata = {0x01,0x02,0x03,0x01,
-				0x01,0x60,(byte) 0x8d,(byte) 0xc0,
-				0x79,0x01,0x01,0x01,
-				(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,
-				0x01,0x02,0x03,0x01,
-				0x01,0x60,(byte) 0x8d,(byte) 0xc0,
-				0x79,0x01,0x01,0x01,
-				(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,(byte) 0xf0};
-		
+		byte[] mac = {
+				(byte) 0x80,						/*mhdr*/
+				(byte) 0x8D,(byte) 0xC0,0x79,0x00,	/*devaddr*/
+				0x00,								/*fctrl*/
+				0x01,0x00,							/*fcnt*/
+				0x03,								/*fport*/
+				0x7F,(byte) 0x90,					/*frm*/
+			//	(byte) 0xB0,0x78,0x75,(byte) 0x8B	/*mic*/
+				};
 		byte[] address = {(byte) 0x8D,(byte) 0xC0,0x79,0x00};
-		byte dir = 0x01;
+		byte dir = 0x00;
 		byte[] sequenceCounter = {0x01,0x00,0x00,0x00};
 		
-		byte[] outputaccept = LoRaMacCrypto.LoRaMacAcceptEncrypt(frmdata, frmdata.length, AppSKey);
-		System.out.println("数据帧：AppSKey");
-		LoRaMacCrypto.myprintHex(outputaccept);
-		System.out.println("accept：AppSKey");
-		LoRaMacCrypto.myprintHex(LoRaMacCrypto.encrypt_ECB(outputaccept, AppSKey));
+		LoRaMacCrypto.myprintHex(LoRaMacCrypto.LoRaMacComputeMic(mac, mac.length, AppSKey, address, dir, sequenceCounter));
+		
+		
+		int accept = 2;
+		
+		if(accept == 1) {
+			// 数据帧的加解密检验, 上行
+			byte[] frmdata = {0x0b, (byte) 0xbf};
+			
+//			byte[] address = {(byte) 0x8D,(byte) 0xC0,0x79,0x00};
+//			byte dir = 0x00;
+//			byte[] sequenceCounter = {0x01,0x00,0x00,0x00};
+			
+			byte[] outputaccept = LoRaMacCrypto.LoRaMacPayloadEncrypt(frmdata, frmdata.length, AppSKey, address, dir, sequenceCounter);
+			System.out.println("数据帧：AppSKey");
+			LoRaMacCrypto.myprintHex(outputaccept);
+			System.out.println("accept：AppSKey");
+			LoRaMacCrypto.myprintHex(LoRaMacCrypto.LoRaMacPayloadDecrypt(outputaccept, outputaccept.length, AppSKey, address, dir, sequenceCounter));
+		} 
+		if(accept == 2){
+			// 入网过程的加解密检验
+			byte[] frmdata = {0x01,0x02,0x03,0x01,
+			0x01,0x60,(byte) 0x8d,(byte) 0xc0,
+			0x79,0x01,0x01,0x01,
+			(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,
+			0x01,0x02,0x03,0x01,
+			0x01,0x60,(byte) 0x8d,(byte) 0xc0,
+			0x79,0x01,0x01,0x01,
+			(byte) 0xf0,(byte) 0xf0,(byte) 0xf0,(byte) 0xf0};
+					
+			byte[] outputaccept = LoRaMacCrypto.LoRaMacAcceptEncrypt(frmdata, frmdata.length, AppSKey);
+			System.out.println("数据帧：AppSKey");
+			LoRaMacCrypto.myprintHex(outputaccept);
+			System.out.println("accept：AppSKey");
+			LoRaMacCrypto.myprintHex(LoRaMacCrypto.encrypt_ECB(outputaccept, AppSKey));
+		}
 		
 	}
 	
